@@ -1,0 +1,4 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup><OutputType>WinExe</OutputType><TargetFramework>net10.0-windows</TargetFramework><UseWPF>true</UseWPF><Nullable>enable</Nullable><ImplicitUsings>enable</ImplicitUsings><AssemblyName>NexusClick</AssemblyName><ApplicationIcon>Assets/dianjing.ico</ApplicationIcon><Product>点境</Product><Description>点境 · 键鼠连点与自动化宏</Description></PropertyGroup>
+  <ItemGroup><ProjectReference Include="../NexusClick.Engine/NexusClick.Engine.csproj" /><Resource Include="Assets/earth-nasa.jpg" /><Resource Include="Assets/dianjing-icon.png" /><Resource Include="Assets/dianjing.ico" /><Resource Include="Assets/cosmos-generated-v1.png" /></ItemGroup>
+</Project>

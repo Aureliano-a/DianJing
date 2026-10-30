@@ -1,0 +1,27 @@
+; Custom text for the installer. System and Modern UI text comes from NSIS.
+!macro CustomStrings LANG TITLE FINISH FINISHTEXT RUN FOLDER DESC PATH BROWSE SHORTCUT FOOT PICK EMPTY BADPATH BADROOT OTHER OVERWRITE WRITEFAIL DELETEFAIL
+  LangString AppTitle ${LANG} "${TITLE}"
+  LangString DoneTitle ${LANG} "${FINISH}"
+  LangString DoneText ${LANG} "${FINISHTEXT}"
+  LangString RunText ${LANG} "${RUN}"
+  LangString FolderText ${LANG} "${FOLDER}"
+  LangString DescText ${LANG} "${DESC}"
+  LangString PathText ${LANG} "${PATH}"
+  LangString BrowseText ${LANG} "${BROWSE}"
+  LangString ShortcutText ${LANG} "${SHORTCUT}"
+  LangString FootText ${LANG} "${FOOT}"
+  LangString PickText ${LANG} "${PICK}"
+  LangString EmptyText ${LANG} "${EMPTY}"
+  LangString BadPathText ${LANG} "${BADPATH}"
+  LangString BadRootText ${LANG} "${BADROOT}"
+  LangString OtherText ${LANG} "${OTHER}"
+  LangString OverwriteText ${LANG} "${OVERWRITE}"
+  LangString WriteFailText ${LANG} "${WRITEFAIL}"
+  LangString DeleteFailText ${LANG} "${DELETEFAIL}"
+!macroend
+
+!insertmacro CustomStrings ${LANG_SIMPCHINESE} "点境 · 安装向导" "点境安装完成" "点境已经准备就绪。请先关闭可能占用快捷键的旧版程序。" "启动点境" "打开安装文件夹" "键鼠连点 · 自动化宏 / 本地运行" "安装文件夹（浏览后自动添加 DianJing）" "浏览..." "创建桌面快捷方式" "安装至当前用户，无需账号；可随时卸载。" "选择点境安装位置" "请选择安装位置。" "无法解析安装位置，请检查路径。" "请选择有效的本地磁盘或网络文件夹。" "点境已安装在其他位置，请先卸载旧版本。" "此文件夹已有点境文件，继续将覆盖它们。是否继续？" "安装文件写入失败，请检查权限和磁盘空间，并关闭正在运行的点境。" "无法删除点境程序，请先关闭点境后重试。"
+!insertmacro CustomStrings ${LANG_ENGLISH} "DianJing Setup" "DianJing is installed" "DianJing is ready. Close older versions that may be using the hotkeys." "Launch DianJing" "Open installation folder" "Mouse and keyboard automation / Offline" "Installation folder (Browse adds DianJing)" "Browse..." "Create a desktop shortcut" "Installed for this user; no account required." "Choose the installation folder" "Select an installation folder." "Cannot resolve this path. Check the installation folder." "Select a valid local or network folder." "DianJing is installed elsewhere. Uninstall the old version first." "This folder contains DianJing files. Overwrite them?" "Unable to write installation files. Check permissions and disk space, and close DianJing." "Unable to remove DianJing. Close the app and retry."
+!insertmacro CustomStrings ${LANG_JAPANESE} "DianJing セットアップ" "DianJing のインストール完了" "準備ができました。ホットキーを使用している旧版を終了してください。" "DianJing を起動" "インストール先を開く" "マウス・キーボード自動化 / ローカル" "インストール先（参照時に DianJing を追加）" "参照..." "デスクトップにショートカットを作成" "現在のユーザーにインストールします。アカウント不要。" "インストール先を選択" "インストール先を選択してください。" "パスを解決できません。インストール先を確認してください。" "有効なローカルまたはネットワークフォルダーを選択してください。" "別の場所にインストール済みです。先に旧版をアンインストールしてください。" "このフォルダーには DianJing のファイルがあります。上書きしますか？" "ファイルを書き込めません。権限と空き容量を確認し、DianJing を終了してください。" "DianJing を削除できません。アプリを終了して再試行してください。"
+!insertmacro CustomStrings ${LANG_SPANISH} "Instalación de DianJing" "DianJing instalado" "DianJing está listo. Cierra versiones anteriores que puedan usar las teclas." "Iniciar DianJing" "Abrir carpeta de instalación" "Automatización de ratón y teclado / Local" "Carpeta de instalación (Examinar añade DianJing)" "Examinar..." "Crear acceso directo en el escritorio" "Instalación para este usuario; no requiere cuenta." "Selecciona la carpeta de instalación" "Selecciona una carpeta de instalación." "No se puede resolver la ruta. Comprueba la carpeta." "Selecciona una carpeta local o de red válida." "DianJing está instalado en otra ubicación. Desinstala primero la versión anterior." "Esta carpeta contiene archivos de DianJing. ¿Deseas sobrescribirlos?" "No se pueden escribir los archivos. Comprueba permisos y espacio y cierra DianJing." "No se puede eliminar DianJing. Cierra la aplicación y vuelve a intentarlo."
+!insertmacro CustomStrings ${LANG_RUSSIAN} "Установка DianJing" "DianJing установлен" "DianJing готов к работе. Закройте старые версии, которые могут занимать горячие клавиши." "Запустить DianJing" "Открыть папку установки" "Автоматизация мыши и клавиатуры / Локально" "Папка установки (обзор добавит DianJing)" "Обзор..." "Создать ярлык на рабочем столе" "Установка для текущего пользователя; учётная запись не нужна." "Выберите папку установки" "Выберите папку установки." "Не удалось разобрать путь. Проверьте папку установки." "Выберите действительную локальную или сетевую папку." "DianJing установлен в другом месте. Сначала удалите старую версию." "В этой папке уже есть файлы DianJing. Перезаписать их?" "Не удалось записать файлы. Проверьте права и место на диске и закройте DianJing." "Не удалось удалить DianJing. Закройте приложение и повторите."
