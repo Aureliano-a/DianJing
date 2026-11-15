@@ -81,8 +81,18 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
         _dispatcher=dispatcher;
         _engine=engine ?? new TaskCoordinator(new WindowsInputSink());
         _readHeldKey=readHeldKey ?? IsKeyDown;
+        if (Environment.GetEnvironmentVariable("DIANJING_DISABLE_SETTINGS_PERSISTENCE") != "1")
+        {
+            var s=AppSettingsStore.Load(AppSettingsStore.DefaultPath);
+            _startHotkeyVk=s.StartKey; _virtualKey=s.TargetKey; _keyDisplay=s.KeyName;
+            _mode=_lastClickMode=s.Mode; _button=s.Button; _triggerMode=s.Trigger;
+            _frequency=s.Frequency; _hold=s.Hold; _repeats=s.Repeats; _maxDuration=s.MaxDuration;
+            _randomInterval=s.RandomInterval; _burstCount=s.BurstCount; _burstRest=s.BurstRest;
+            _x=s.X; _y=s.Y; _fixed=s.Fixed;
+        }
         InitializeMacro();
         InitializePosition();
+        InitializeLibrary();
         Localization.Instance.PropertyChanged += OnLanguageChanged;
         StartCommand=new RelayCommand(StartOrResume); PauseCommand=new RelayCommand(Pause); StopCommand=new RelayCommand(()=>_ = StopAsync()); RetryCommand=new RelayCommand(Retry); CaptureCommand=new RelayCommand(ToggleCapture);
         NavigateClickCommand=new RelayCommand(GoClick); NavigateMacroCommand=new RelayCommand(GoMacro); ClickRunCommand=new RelayCommand(RunClick);
@@ -141,6 +151,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
     }
     private void Pause() { if (_engine.Pause()) Notice="已请求暂停；正在保持的输入会先释放。"; Refresh(); }
     private void ToggleFromHotkey() { if (_capturing || _capturingHotkey || _recording) return; if (CurrentState()==EngineState.Running) Pause(); else StartOrResume(); }
+    private bool _captureMacro;
     private void ToggleCapture()
     {
         if (_capturing) { CancelCapture(); return; }
@@ -149,7 +160,7 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
         if (_positionCapture is not null) { Notice="请先完成或取消位置拾取。"; return; }
         if (IsTaskActive())
         { Notice="请先停止任务，再设置按键。"; return; }
-        if (Mode!="宏") Mode="键盘"; _capturing=true; PropertyChanged?.Invoke(this,new(nameof(CaptureButtonText)));
+        _captureMacro=Mode=="宏"; if (!_captureMacro) Mode="键盘"; _capturing=true; PropertyChanged?.Invoke(this,new(nameof(CaptureButtonText)));
         Notice="请在本窗口按下一个键。F8、F11、F12 保留给控制功能；再次点击按钮可取消。";
     }
     public void CancelCapture()
@@ -171,10 +182,10 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
         { Notice="当前只支持单键，请松开修饰键后重新按下目标键。"; return; }
         int vk=KeyInterop.VirtualKeyFromKey(key);
         if (vk is < 1 or > 254) { Notice="无法识别此按键，请选择其他按键。"; return; }
-        _virtualKey=vk;
-        KeyDisplay=key switch { System.Windows.Input.Key.Space=>"空格",System.Windows.Input.Key.Return=>"Enter",System.Windows.Input.Key.Up=>"方向上",System.Windows.Input.Key.Down=>"方向下",System.Windows.Input.Key.Left=>"方向左",System.Windows.Input.Key.Right=>"方向右",_ when key is >= System.Windows.Input.Key.D0 and <= System.Windows.Input.Key.D9 => ((int)key-(int)System.Windows.Input.Key.D0).ToString(CultureInfo.InvariantCulture),_=>key.ToString() };
+        var display=key switch { System.Windows.Input.Key.Space=>"空格",System.Windows.Input.Key.Return=>"Enter",System.Windows.Input.Key.Up=>"方向上",System.Windows.Input.Key.Down=>"方向下",System.Windows.Input.Key.Left=>"方向左",System.Windows.Input.Key.Right=>"方向右",_ when key is >= System.Windows.Input.Key.D0 and <= System.Windows.Input.Key.D9 => ((int)key-(int)System.Windows.Input.Key.D0).ToString(CultureInfo.InvariantCulture),_=>key.ToString() };
+        if (_captureMacro) { _macroVirtualKey=vk; MacroKeyDisplay=display; } else { _virtualKey=vk; KeyDisplay=display; }
         _capturing=false; PropertyChanged?.Invoke(this,new(nameof(CaptureButtonText)));
-        Notice="已设置按键："+KeyDisplay+"。";
+        Notice="已设置按键："+display+"。";
     }
     public async Task StopAsync()
     {
@@ -205,6 +216,16 @@ public sealed partial class MainViewModel : INotifyPropertyChanged
     {
         _shuttingDown=true; _timer.Stop(); Localization.Instance.PropertyChanged -= OnLanguageChanged; CancelPosition(); CancelHotkeyCapture(); CancelHoldSession(); StopRecording("录制已停止。");
         try { _hotkeys?.Dispose(); } finally { await _engine.DisposeAsync(); }
+    }
+    public void SaveSettings(bool animation)
+    {
+        if (Environment.GetEnvironmentVariable("DIANJING_DISABLE_SETTINGS_PERSISTENCE") == "1") return;
+        AppSettingsStore.Save(AppSettingsStore.DefaultPath, new AppSettings {
+            StartKey=_startHotkeyVk, TargetKey=_virtualKey, KeyName=_keyDisplay, Mode=_lastClickMode,
+            Button=_button, Trigger=_triggerMode, Frequency=_frequency, Hold=_hold, Repeats=_repeats,
+            MaxDuration=_maxDuration, RandomInterval=_randomInterval, BurstCount=_burstCount,
+            BurstRest=_burstRest, X=_x, Y=_y, Fixed=_fixed, Animation=animation
+        });
     }
     private void Set<T>(ref T field,T value,[CallerMemberName] string? name=null) { if (EqualityComparer<T>.Default.Equals(field,value)) return; field=value; PropertyChanged?.Invoke(this,new(name)); }
     private sealed class RelayCommand(Action action) : ICommand { public event EventHandler? CanExecuteChanged { add {} remove {} } public bool CanExecute(object? p)=>true; public void Execute(object? p)=>action(); }

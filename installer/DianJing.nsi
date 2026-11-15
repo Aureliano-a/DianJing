@@ -9,7 +9,7 @@
   OutFile "${__FILEDIR__}\..\..\DianJing-Setup-Test.exe"
 !else
   !define APPKEY "Software\Microsoft\Windows\CurrentVersion\Uninstall\DianJing"
-  OutFile "${__FILEDIR__}\..\..\DianJing-Setup-v12.exe"
+  OutFile "${__FILEDIR__}\..\..\DianJing-Setup-v32.exe"
 !endif
 Name "点境"
 Caption "$(AppTitle)"
@@ -253,9 +253,9 @@ Section "Install"
   ClearErrors
   SetOutPath "$INSTDIR"
   IfErrors install_error
-  File /oname=DianJing.exe "${__FILEDIR__}\..\..\DianJing-Portable-v7\DianJing.exe"
+  File /oname=DianJing.exe "${__FILEDIR__}\..\..\DianJing-Portable-v27\DianJing.exe"
   IfErrors install_error
-  File /oname=DianJing-使用说明.md "${__FILEDIR__}\..\..\DianJing-Portable-v7\使用说明.md"
+  File /oname=DianJing-使用说明.md "${__FILEDIR__}\..\..\DianJing-Portable-v27\使用说明.md"
   IfErrors install_error
   WriteUninstaller "$INSTDIR\Uninstall-DianJing.exe"
   IfErrors install_error

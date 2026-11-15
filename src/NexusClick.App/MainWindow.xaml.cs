@@ -6,7 +6,7 @@ public partial class MainWindow : Window
 {
     private readonly MainViewModel _vm;
     private bool _closing, _closed;
-    public MainWindow() { InitializeComponent(); _vm = new MainViewModel(Dispatcher); DataContext = _vm; }
+    public MainWindow() { InitializeComponent(); _vm = new MainViewModel(Dispatcher); DataContext = _vm; if (Environment.GetEnvironmentVariable("DIANJING_DISABLE_SETTINGS_PERSISTENCE") != "1") StarAnimationToggle.IsChecked=AppSettingsStore.Load(AppSettingsStore.DefaultPath).Animation; }
     private void Window_KeyDown(object sender, KeyEventArgs e)
     {
         if (e.Key == Key.F12) { e.Handled = true; _vm.CancelCapture(); _vm.CancelHotkeyCapture(); _vm.StopRecording("录制已停止。"); _ = _vm.StopAsync(); return; }
@@ -20,6 +20,8 @@ public partial class MainWindow : Window
     {
         if (_closed) return;
         e.Cancel = true; if (_closing) return; _closing = true;
+        try { _vm.SaveSettings(StarAnimationToggle.IsChecked == true); }
+        catch (Exception ex) { MessageBox.Show("设置保存失败：" + ex.Message, "点境", MessageBoxButton.OK, MessageBoxImage.Warning); }
         try { await _vm.ShutdownAsync(); }
         catch (Exception ex) { var loc=Localization.Instance; MessageBox.Show(loc.Translate("停止或释放输入时发生错误：") + loc.Translate(ex.Message) + "\n" + loc.Translate("请检查键盘和鼠标状态。"), loc.Translate("关闭点境"), MessageBoxButton.OK, MessageBoxImage.Warning); }
         _closed = true; Close();

@@ -18,6 +18,7 @@ internal static class Program
     static int Main()
     {
         Environment.SetEnvironmentVariable("DIANJING_DISABLE_LANGUAGE_PERSISTENCE", "1");
+        Environment.SetEnvironmentVariable("DIANJING_DISABLE_SETTINGS_PERSISTENCE", "1");
         var app = new App(); app.InitializeComponent(); app.Startup -= app.StartMainWindow; app.ShutdownMode = ShutdownMode.OnExplicitShutdown;
         var parameters = new HwndSourceParameters("NEXUS key capture test") { Width = 1, Height = 1, WindowStyle = unchecked((int)0x80000000) };
         using var source = new HwndSource(parameters);
@@ -28,6 +29,59 @@ internal static class Program
         try
         {
             void Assert(bool value, string message) { if (!value) throw new InvalidOperationException(message); }
+            var settingsFile=Path.Combine(Path.GetTempPath(),"dianjing-settings-test-"+Guid.NewGuid().ToString("N")+".json");
+            try
+            {
+                var settings=new AppSettings { StartKey=0x74, Frequency="12.5", Mode="键盘", Animation=false };
+                AppSettingsStore.Save(settingsFile,settings);
+                Assert(AppSettingsStore.Load(settingsFile)==settings,"settings roundtrip failed");
+                File.WriteAllText(settingsFile,"{broken");
+                Assert(AppSettingsStore.Load(settingsFile)==new AppSettings(),"invalid settings did not fall back safely");
+            }
+            finally { if (File.Exists(settingsFile)) File.Delete(settingsFile); }
+            var libraryFile=Path.Combine(Path.GetTempPath(),"dianjing-library-test-"+Guid.NewGuid().ToString("N")+".json");
+            try
+            {
+                var library=new MacroLibrary(libraryFile);
+                var group=new MacroGroup(Guid.NewGuid(),"工作 / Work");
+                var doc=new MacroDocument(1,Guid.NewGuid(),"测试宏",new MacroPlan(new[]{new MacroStep(MacroStepKind.Wait,DurationMilliseconds:100)},2,60));
+                library.Save(new MacroLibraryData(1,new(){group},new(){new MacroLibraryItem(group.Id,doc)}));
+                var loaded=library.Load();
+                Assert(loaded.Groups[0].Name==group.Name && loaded.Items[0].Macro.Name==doc.Name && loaded.Items[0].Macro.Plan.RepeatCount==2,"macro library roundtrip failed");
+                File.WriteAllText(libraryFile,"{broken");
+                try { library.Load(); throw new Exception("corrupt library accepted"); } catch(InvalidDataException) { }
+            }
+            finally { if(File.Exists(libraryFile)) File.Delete(libraryFile); }
+            var uiLibraryFile=Path.Combine(Path.GetTempPath(),"dianjing-library-ui-"+Guid.NewGuid().ToString("N")+".json");
+            try
+            {
+                typeof(MainViewModel).GetField("_library",BindingFlags.Instance|BindingFlags.NonPublic)!.SetValue(vm,new MacroLibrary(uiLibraryFile));
+                vm.MacroStepType="等待"; vm.MacroDuration="50"; vm.MacroAddCommand.Execute(null); vm.MacroName="快速保存";
+                vm.SaveToLibraryCommand.Execute(null);
+                Assert(vm.LibraryGroups.Count==1 && vm.LibraryItems.Count==1 && vm.SelectedLibraryItem?.Macro.Name=="快速保存","first save did not create a default group");
+                vm.MacroNewCommand.Execute(null);
+                vm.GroupName="常用"; vm.CreateGroupCommand.Execute(null);
+                Assert(vm.LibraryGroups.Count==2 && vm.SelectedGroup?.Name=="常用","group creation failed");
+                vm.GroupName="工作"; vm.RenameGroupCommand.Execute(null);
+                Assert(vm.SelectedGroup?.Name=="工作","group rename failed");
+                vm.MacroStepType="等待"; vm.MacroDuration="50"; vm.MacroAddCommand.Execute(null); vm.MacroName="测试";
+                vm.SaveToLibraryCommand.Execute(null);
+                Assert(vm.LibraryItems.Count==1 && vm.SelectedLibraryItem?.Macro.Name=="测试","saving macro to library failed");
+                vm.LibrarySearch="not found"; Assert(vm.LibraryItems.Count==0,"search did not filter items");
+                vm.LibrarySearch="测试"; Assert(vm.LibraryItems.Count==1,"search did not find matching name");
+                vm.ClearLibrarySearchCommand.Execute(null); Assert(vm.LibraryItems.Count==1 && vm.LibrarySearch=="","clear search failed");
+                vm.SelectedLibraryItem=vm.LibraryItems[0];
+                vm.ItemName="新名称"; vm.RenameLibraryItemCommand.Execute(null);
+                Assert(vm.SelectedLibraryItem?.Macro.Name=="新名称","macro rename failed");
+                vm.MacroNewCommand.Execute(null); vm.MacroPageIndex=2; vm.OpenLibraryItemCommand.Execute(null);
+                Assert(vm.MacroName=="新名称" && vm.MacroSteps.Count==1 && vm.MacroPageIndex==0,"opening saved macro failed to return to editor");
+                for(int i=0;i<5;i++) { vm.MacroNewCommand.Execute(null); vm.MacroStepType="等待"; vm.MacroAddCommand.Execute(null); vm.MacroName="Page "+i; vm.SaveToLibraryCommand.Execute(null); }
+                Assert(vm.LibraryItems.Count==6 && vm.LibraryPageItems.Count==3 && vm.LibraryPageLabel=="2 / 2", "library paging after save failed");
+                vm.LibraryPreviousCommand.Execute(null); Assert(vm.LibraryPageLabel=="1 / 2" && vm.LibraryPageItems[0].Macro.Name=="新名称" && vm.SelectedLibraryItem==null, "previous page retained a hidden item selection");
+                vm.LibraryNextCommand.Execute(null); Assert(vm.LibraryPageItems[2].Macro.Name=="Page 4", "next page failed");
+                vm.MacroNewCommand.Execute(null);
+            }
+            finally { if(File.Exists(uiLibraryFile)) File.Delete(uiLibraryFile); }
             var planet = new PlanetArtwork();
             planet.Measure(new Size(240, 180)); planet.Arrange(new Rect(0, 0, 240, 180)); planet.UpdateLayout();
             var bitmap = new RenderTargetBitmap(240, 180, 96, 96, PixelFormats.Pbgra32);
@@ -66,6 +120,9 @@ internal static class Program
             vm.BurstCount="3"; vm.BurstRest="800";
             var uiPlan = (InputPlan)makePlan.Invoke(vm, null)!;
             Assert(uiPlan.MaximumDurationSeconds == 12 && uiPlan.RandomIntervalPercent == 25 && uiPlan.BurstCount == 3 && uiPlan.BurstRestMilliseconds == 800, "duration, burst or random interval was not passed to the engine");
+            vm.X="123"; vm.Y="456"; vm.Fixed=true;
+            Assert(((InputPlan)makePlan.Invoke(vm,null)!).FixedPosition == new ScreenPoint(123,456), "fixed position not passed to engine");
+            vm.Fixed=false; Assert(((InputPlan)makePlan.Invoke(vm,null)!).FixedPosition is null, "follow cursor unexpectedly moved to a fixed position");
             vm.RandomInterval="51";
             try { makePlan.Invoke(vm, null); throw new InvalidOperationException("invalid random interval accepted"); }
             catch (TargetInvocationException ex) when (ex.InnerException is ArgumentException) { }
@@ -88,10 +145,27 @@ internal static class Program
             Press(Key.Divide); Assert(!vm.IsCapturing && VirtualKey() == 0x6F, "numpad divide selection failed");
             vm.CaptureCommand.Execute(null); vm.CancelCapture(); Assert(!vm.IsCapturing && VirtualKey() == 0x6F, "cancel changed selection");
             vm.Mode="宏"; vm.MacroStepType="等待"; vm.MacroDuration="15"; vm.MacroAddCommand.Execute(null);
-            vm.MacroDuration="25"; vm.MacroAddCommand.Execute(null); vm.MacroSelected=1; vm.MacroUpCommand.Execute(null);
+            vm.MacroDuration="25"; vm.MacroAddCommand.Execute(null);
+            vm.StepPageSelected=0; Assert(vm.MacroDuration=="15" && vm.MacroStepType=="等待", "selecting a step did not load its parameters");
+            var clickKeyBeforeMacro=VirtualKey(); vm.CaptureCommand.Execute(null); Press(Key.B);
+            Assert(vm.MacroKeyDisplay=="B" && VirtualKey()==clickKeyBeforeMacro, "macro key capture changed click key");
+            vm.MacroSelected=0; vm.MacroDuration="19"; vm.MacroInsertCommand.Execute(null);
+            Assert(vm.MacroSteps.Count==3 && vm.MacroSteps[1].Contains("19") && vm.MacroSelected==1, "insert after selection failed");
+            vm.MacroRemoveCommand.Execute(null); vm.MacroSelected=1; vm.MacroUpCommand.Execute(null);
             Assert(vm.MacroSteps.Count==2 && vm.MacroSteps[0].Contains("25"), "macro move did not update order");
             vm.MacroDuplicateCommand.Execute(null); Assert(vm.MacroSteps.Count==3, "macro duplicate failed");
             vm.MacroRemoveCommand.Execute(null); Assert(vm.MacroSteps.Count==2, "macro remove failed");
+            vm.MacroDuration="35"; vm.MacroAddCommand.Execute(null); vm.MacroDuration="45"; vm.MacroAddCommand.Execute(null);
+            Assert(vm.StepPageLabel=="2 / 2" && vm.StepPageItems.Count==1 && vm.StepPageSelected==0, "new step page incorrect");
+            vm.MacroUpCommand.Execute(null);
+            Assert(vm.StepPageLabel=="1 / 2" && vm.MacroSelected==2 && vm.MacroSteps[2].Contains("45"), "move across page boundary failed");
+            vm.StepNextCommand.Execute(null);
+            Assert(vm.MacroSelected==-1 && vm.StepSelectionLabel.StartsWith("—"), "page navigation retained a hidden step selection");
+            var countBeforeHiddenDelete=vm.MacroSteps.Count; vm.MacroRemoveCommand.Execute(null);
+            Assert(vm.MacroSteps.Count==countBeforeHiddenDelete, "page navigation allowed deleting a hidden step");
+            vm.StepPageSelected=0; vm.MacroRemoveCommand.Execute(null);
+            Assert(vm.MacroSteps.Count==3 && vm.StepPageLabel=="1 / 1", "last page removal failed");
+            vm.MacroSelected=2; vm.MacroRemoveCommand.Execute(null);
             var build = typeof(MainViewModel).GetMethod("BuildMacroPlan", BindingFlags.Instance | BindingFlags.NonPublic)!;
             var macro = (MacroPlan)build.Invoke(vm, null)!;
             Assert(macro.Steps[0].DurationMilliseconds==25 && macro.Steps[1].DurationMilliseconds==15, "macro plan did not preserve editor order");
@@ -193,8 +267,28 @@ internal static class Program
                     }
                 }
                 var tabs=LogicalDescendants<TabControl>(window).ToArray();
-                Assert(tabs.Length == 2 && tabs[0].Items.Count == 4 && tabs[1].Items.Count == 2, "settings were not split into compact sections");
+                Assert(tabs.Length == 2 && tabs[0].Items.Count == 4 && tabs[1].Items.Count == 3, "settings were not split into compact sections");
                 var windowVm=(MainViewModel)window.DataContext;
+                var groupPicker=(ComboBox)window.FindName("MacroGroupPicker");
+                var groupName=new MacroGroup(Guid.NewGuid(),"我的分组 / Work");
+                windowVm.LibraryGroups.Add(groupName); windowVm.SelectedGroup=groupName; Pump(20);
+                Assert(groupPicker.SelectionBoxItemTemplate is not null, "selected group has no display template");
+                Assert(ReferenceEquals(groupPicker.SelectionBoxItem,groupName) && ReferenceEquals(groupPicker.SelectionBoxItemTemplate,groupPicker.ItemTemplate), "selected group is not using the name template");
+                var groupText=(TextBlock)groupPicker.ItemTemplate.LoadContent();
+                groupText.DataContext=groupName; Pump(20); groupText.GetBindingExpression(TextBlock.TextProperty)?.UpdateTarget();
+                Assert(groupText.Text==groupName.Name, "group picker does not display the custom name");
+                var macroList=(ListBox)window.FindName("MacroLibraryList");
+                var namedMacro=new MacroLibraryItem(groupName.Id,new MacroDocument(1,Guid.NewGuid(),"我的宏",new MacroPlan(new[]{new MacroStep(MacroStepKind.Wait,DurationMilliseconds:50)},1,60)));
+                var macroText=(TextBlock)macroList.ItemTemplate.LoadContent(); macroText.DataContext=namedMacro;
+                Pump(20); macroText.GetBindingExpression(TextBlock.TextProperty)?.UpdateTarget();
+                Assert(macroText.Text=="我的宏", "macro list does not display the custom name");
+                var panels=LogicalDescendants<StackPanel>(window).ToArray();
+                var mousePanel=panels.Single(p=>ReferenceEquals(p.Style,window.FindResource("MouseOnly")));
+                var keyboardPanel=panels.Single(p=>ReferenceEquals(p.Style,window.FindResource("KeyboardOnly")));
+                Assert(mousePanel.Visibility==Visibility.Visible && keyboardPanel.Visibility==Visibility.Collapsed, "mouse mode controls incorrect");
+                windowVm.Mode="键盘"; Pump(20);
+                Assert(mousePanel.Visibility==Visibility.Collapsed && keyboardPanel.Visibility==Visibility.Visible, "keyboard mode controls incorrect");
+                windowVm.Mode="鼠标"; Pump(20);
                 var languagePicker=LogicalDescendants<ComboBox>(window).Single(c => c.Items.Count==5 && c.Items[0] is ComboBoxItem);
                 var translations=(Dictionary<string,string[]>)typeof(Localization).GetField("_strings",BindingFlags.Instance|BindingFlags.NonPublic)!.GetValue(Localization.Instance)!;
                 foreach (var (key, values) in translations)

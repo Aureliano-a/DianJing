@@ -11,8 +11,8 @@ DianJing is a local Windows 11 x64 application for mouse and keyboard repetition
 
 - Repeat left, right, or middle mouse clicks or a custom single key, with rate, hold time, random interval, burst rest, count, and duration controls.
 - Follow the cursor or pick a fixed screen position; start tasks with a toggle or by holding a hotkey.
-- Record single keys in the app window or arrange key, mouse-click, and wait steps manually; save and load macros as JSON.
-- **F8** starts or pauses by default; **Ctrl + Shift + F11** is the global emergency stop. **F12** stops within the app window. The start key can be changed to F1–F10 for the current session.
+- Record single keys in the app window or arrange key, mouse-click, and wait steps manually; save macros to a searchable, paginated library with custom groups, or import and export JSON.
+- **F8** starts or pauses by default; **Ctrl + Shift + F11** is the global emergency stop. **F12** stops within the app window. The start key can be changed to F1–F10 and is saved locally.
 - Interface languages: Simplified Chinese, English, Japanese, Spanish, and Russian. Decorative animations can be switched off.
 
 ### Install and use

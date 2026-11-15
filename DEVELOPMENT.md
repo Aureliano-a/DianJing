@@ -55,7 +55,7 @@ dotnet run --project tests/NexusClick.App.Tests/NexusClick.App.Tests.csproj -c R
 
 ## 安装程序
 
-安装脚本位于 installer/DianJing.nsi，使用 NSIS 3 Unicode 编译。先将 WPF 程序自包含发布至源码目录的同级 DianJing-Portable-v7 文件夹，发布时启用 `PublishSingleFile=true` 和 `IncludeNativeLibrariesForSelfExtract=true`；将生成的 NexusClick.exe 复制为 DianJing.exe，并将源码根目录的使用说明.md 复制至该文件夹；再运行 makensis 编译安装脚本。安装程序默认为当前用户安装，选择上级目录时自动添加 DianJing 文件夹。
+安装脚本位于 installer/DianJing.nsi，使用 NSIS 3 Unicode 编译。先将 WPF 程序自包含发布至源码目录的同级 DianJing-Portable-v27 文件夹，发布时启用 `PublishSingleFile=true` 和 `IncludeNativeLibrariesForSelfExtract=true`；将生成的 NexusClick.exe 复制为 DianJing.exe，并将源码根目录的使用说明.md 复制至该文件夹；再运行 makensis 编译安装脚本。安装程序默认为当前用户安装，选择上级目录时自动添加 DianJing 文件夹。
 
 宇宙背景由 OpenAI 内置 imagegen 生成，原始分辨率为 1672 × 941。界面叠加限帧动态星点及 NASA 历史地球贴图，运行中主按钮显示脉冲；关闭右上角的动画开关可同时停止星点、地球和按钮脉冲。
 

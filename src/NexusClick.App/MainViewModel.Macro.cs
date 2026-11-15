@@ -14,10 +14,40 @@ public sealed partial class MainViewModel
     private bool _lastMacro;
     private bool _macroNameIsGenerated = true;
     private int _macroSelected = -1;
+    private int _macroVirtualKey = 0x41;
+    private string _macroKeyDisplay = "A";
+    public string MacroKeyDisplay { get => _macroKeyDisplay; private set => Set(ref _macroKeyDisplay,value); }
     private string _macroName = Localization.Instance.Translate("未命名宏"), _macroStepType = "等待", _macroDuration = "100", _macroRepeats = "1", _macroTimeout = "300";
     public string[] MacroStepTypes { get; } = ["按键", "鼠标左键", "鼠标右键", "鼠标中键", "等待"];
     public ObservableCollection<string> MacroSteps { get; } = new();
-    public int MacroSelected { get => _macroSelected; set => Set(ref _macroSelected, value); }
+    private int _stepPage;
+    private bool _refreshingStepPage;
+    private const int StepPageSize = 3;
+    public ObservableCollection<string> StepPageItems { get; } = new();
+    public string StepSelectionLabel => MacroSelected >= 0 && MacroSelected < MacroSteps.Count ? $"{MacroSelected + 1} / {MacroSteps.Count}" : $"— / {MacroSteps.Count}";
+    public string StepPageLabel => $"{_stepPage + 1} / {Math.Max(1, (MacroSteps.Count + StepPageSize - 1) / StepPageSize)}";
+    public int StepPageSelected { get => MacroSelected >= _stepPage * StepPageSize && MacroSelected < (_stepPage + 1) * StepPageSize ? MacroSelected - _stepPage * StepPageSize : -1; set { if (!_refreshingStepPage) { MacroSelected = value < 0 ? -1 : _stepPage * StepPageSize + value; if (MacroSelected >= 0 && MacroSelected < _draft.Steps.Count) LoadSelectedStep(); } } }
+    public ICommand StepPreviousCommand { get; private set; } = null!;
+    public ICommand StepNextCommand { get; private set; } = null!;
+    public int MacroSelected { get => _macroSelected; set { Set(ref _macroSelected, value); PropertyChanged?.Invoke(this, new(nameof(StepPageSelected))); PropertyChanged?.Invoke(this, new(nameof(StepSelectionLabel))); } }
+    private void NavigateStepPage(int delta) {
+        var next=Math.Clamp(_stepPage+delta,0,Math.Max(0,(MacroSteps.Count-1)/StepPageSize));
+        if(next==_stepPage) return;
+        MacroSelected=-1; _stepPage=next; RefreshStepPage();
+    }
+    private void LoadSelectedStep() {
+        var step=_draft.Steps[MacroSelected];
+        MacroStepType=step.Kind switch { MacroStepKind.Key=>"按键", MacroStepKind.MouseLeft=>"鼠标左键", MacroStepKind.MouseRight=>"鼠标右键", MacroStepKind.MouseMiddle=>"鼠标中键", _=>"等待" };
+        MacroDuration=step.DurationMilliseconds.ToString();
+        if(step.Kind==MacroStepKind.Key) { _macroVirtualKey=step.VirtualKey; MacroKeyDisplay=FormatMacroKey(step.VirtualKey); }
+    }
+    private void RefreshStepPage() {
+        _stepPage = Math.Clamp(_stepPage, 0, Math.Max(0, (MacroSteps.Count - 1) / StepPageSize));
+        _refreshingStepPage = true;
+        try { StepPageItems.Clear(); foreach (var step in MacroSteps.Skip(_stepPage * StepPageSize).Take(StepPageSize)) StepPageItems.Add(step); }
+        finally { _refreshingStepPage = false; }
+        PropertyChanged?.Invoke(this, new(nameof(StepPageLabel))); PropertyChanged?.Invoke(this, new(nameof(StepPageSelected))); PropertyChanged?.Invoke(this, new(nameof(StepSelectionLabel)));
+    }
     public string MacroName { get => _macroName; set { if (value == _macroName) return; _macroNameIsGenerated = false; Set(ref _macroName, value); } }
     private void SetDefaultMacroName()
     {
@@ -34,6 +64,7 @@ public sealed partial class MainViewModel
     public string MacroTimeout { get => _macroTimeout; set => Set(ref _macroTimeout, value); }
     public string MacroProgress { get; private set; } = "—";
     public ICommand MacroAddCommand { get; private set; } = null!;
+    public ICommand MacroInsertCommand { get; private set; } = null!;
     public ICommand MacroReplaceCommand { get; private set; } = null!;
     public ICommand MacroRemoveCommand { get; private set; } = null!;
     public ICommand MacroDuplicateCommand { get; private set; } = null!;
@@ -46,7 +77,10 @@ public sealed partial class MainViewModel
     public ICommand RecordCommand { get; private set; } = null!;
     private void InitializeMacro()
     {
+        StepPreviousCommand = new RelayCommand(()=>NavigateStepPage(-1));
+        StepNextCommand = new RelayCommand(()=>NavigateStepPage(1));
         MacroAddCommand = new RelayCommand(()=>EditMacro(()=>ApplyDraft(_draft.Insert(_draft.Steps.Count, MakeMacroStep()), _draft.Steps.Count)));
+        MacroInsertCommand = new RelayCommand(()=>EditMacro(()=>{ if (MacroSelected < 0 || MacroSelected >= _draft.Steps.Count) throw new ArgumentOutOfRangeException(); var index=MacroSelected+1; ApplyDraft(_draft.Insert(index,MakeMacroStep()),index); }));
         MacroReplaceCommand = new RelayCommand(()=>EditMacro(()=>ApplyDraft(_draft.Replace(MacroSelected, MakeMacroStep()), MacroSelected)));
         MacroRemoveCommand = new RelayCommand(()=>EditMacro(()=>ApplyDraft(_draft.Remove(MacroSelected), Math.Min(MacroSelected, _draft.Steps.Count-2))));
         MacroDuplicateCommand = new RelayCommand(()=>EditMacro(()=>ApplyDraft(_draft.Duplicate(MacroSelected), MacroSelected+1)));
@@ -83,7 +117,7 @@ public sealed partial class MainViewModel
         if (!int.TryParse(MacroDuration, out var ms)) throw new ArgumentException("步骤时长请输入整数毫秒。");
         var kind=MacroStepType switch { "按键"=>MacroStepKind.Key,"鼠标左键"=>MacroStepKind.MouseLeft,"鼠标右键"=>MacroStepKind.MouseRight,"鼠标中键"=>MacroStepKind.MouseMiddle,"等待"=>MacroStepKind.Wait,_=>throw new ArgumentException("请选择步骤类型。") };
         if (ms < 1 || ms > (kind==MacroStepKind.Wait ? 60000 : 5000)) throw new ArgumentException(kind==MacroStepKind.Wait ? "等待时间须为 1–60000 毫秒。" : "按键或鼠标保持时间须为 1–5000 毫秒。");
-        var step=new MacroStep(kind, kind==MacroStepKind.Key ? _virtualKey : 0, ms); step.Validate(); return step;
+        var step=new MacroStep(kind, kind==MacroStepKind.Key ? _macroVirtualKey : 0, ms); step.Validate(); return step;
     }
     private void ApplyDraft(MacroDraft draft, int selected)
     {
@@ -94,7 +128,7 @@ public sealed partial class MainViewModel
             var label=s.Kind switch { MacroStepKind.Key=>$"按键 {FormatMacroKey(s.VirtualKey)}",MacroStepKind.MouseLeft=>"鼠标左键",MacroStepKind.MouseRight=>"鼠标右键",MacroStepKind.MouseMiddle=>"鼠标中键",_=>"等待" };
             MacroSteps.Add($"{i+1:00}  ·  {label}  ·  {s.DurationMilliseconds} 毫秒");
         }
-        MacroSelected=selected;
+        MacroSelected=selected; _stepPage=selected >= 0 ? selected / StepPageSize : 0; RefreshStepPage();
     }
     private static string FormatMacroKey(int virtualKey) => virtualKey switch
     {

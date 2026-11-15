@@ -12,10 +12,12 @@ public sealed class Localization : INotifyPropertyChanged
 {
     public static Localization Instance { get; } = new();
     private int _language;
+    private readonly KeyValuePair<string, string[]>[] _compositeStrings;
     private static string SettingsPath => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "DianJing", "language.txt");
     private static bool Persist => Environment.GetEnvironmentVariable("DIANJING_DISABLE_LANGUAGE_PERSISTENCE") != "1";
     private Localization()
     {
+        _compositeStrings = _strings.Where(p => p.Key.Length >= 7).OrderByDescending(p => p.Key.Length).ToArray();
         try
         {
             if (Persist && File.Exists(SettingsPath) && int.TryParse(File.ReadAllText(SettingsPath), out var language) && language is >= 0 and <= 4)
@@ -75,7 +77,7 @@ public sealed class Localization : INotifyPropertyChanged
         value = value.Replace(" / 秒", units[_language - 1], StringComparison.Ordinal);
         value = value.Replace("   开始 / 暂停", new[] { "   Start / pause", "   開始 / 一時停止", "   Iniciar / pausar", "   Старт / пауза" }[_language - 1], StringComparison.Ordinal);
         // Composite status messages may contain a translated prefix and a translated detail.
-        foreach (var pair in _strings.Where(p => p.Key.Length >= 7).OrderByDescending(p => p.Key.Length))
+        foreach (var pair in _compositeStrings)
             value = value.Replace(pair.Key, pair.Value[_language - 1], StringComparison.Ordinal);
         return value;
     }
@@ -113,6 +115,38 @@ public sealed class Localization : INotifyPropertyChanged
     {
         const string rows = """
 基础设置|Basic|基本設定|Básico|Основное
+宏列表|Macro library|マクロ一覧|Biblioteca de macros|Библиотека макросов
+分组|Group|グループ|Grupo|Группа
+分组名称|Group name|グループ名|Nombre del grupo|Название группы
+创建分组|Create group|グループ作成|Crear grupo|Создать группу
+重命名分组|Rename group|グループ名変更|Renombrar grupo|Переименовать группу
+列表中的宏|Macros in group|グループ内のマクロ|Macros del grupo|Макросы группы
+宏项目名称|Macro item name|マクロ項目名|Nombre de la macro|Название макроса
+已选步骤 / 总数|Selected / total|選択 / 合計|Seleccionado / total|Выбрано / всего
+添加到末尾|Add to end|末尾に追加|Añadir al final|Добавить в конец
+插入到所选步骤之后|Insert after selected step|選択したステップの後に挿入|Insertar después del paso seleccionado|Вставить после выбранного шага
+插入步骤|Insert step|ステップを挿入|Insertar paso|Вставить шаг
+列表中的步骤|Steps|ステップ一覧|Pasos|Шаги
+清除搜索|Clear search|検索をクリア|Borrar búsqueda|Очистить поиск
+搜索当前分组中的宏|Search macros in this group|このグループのマクロを検索|Buscar macros en este grupo|Поиск макросов в группе
+默认分组|Default|デフォルト|Predeterminado|По умолчанию
+保存当前宏到列表|Save current macro|現在のマクロを保存|Guardar macro actual|Сохранить текущий макрос
+打开所选宏|Open selected|選択したマクロを開く|Abrir selección|Открыть выбранный
+重命名宏|Rename macro|マクロ名変更|Renombrar macro|Переименовать макрос
+宏分组已创建。|Group created.|グループを作成しました。|Grupo creado.|Группа создана.
+宏分组已重命名。|Group renamed.|グループ名を変更しました。|Grupo renombrado.|Группа переименована.
+宏已保存到列表。|Macro saved to library.|マクロを一覧に保存しました。|Macro guardada en la biblioteca.|Макрос сохранён в библиотеку.
+宏已打开，可在步骤编辑中修改。|Macro opened; edit it in Steps.|マクロを開きました。ステップ編集で変更できます。|Macro abierta; edítala en Pasos.|Макрос открыт; измените его на вкладке шагов.
+宏已重命名。|Macro renamed.|マクロ名を変更しました。|Macro renombrada.|Макрос переименован.
+请先创建或选择分组。|Create or select a group first.|先にグループを作成または選択してください。|Crea o selecciona primero un grupo.|Сначала создайте или выберите группу.
+请先选择分组。|Select a group first.|先にグループを選択してください。|Selecciona primero un grupo.|Сначала выберите группу.
+请先选择宏。|Select a macro first.|先にマクロを選択してください。|Selecciona primero una macro.|Сначала выберите макрос.
+名称须为 1–80 个非控制字符。|Name must contain 1–80 non-control characters.|名前は制御文字を除く 1–80 文字です。|El nombre debe contener 1–80 caracteres no de control.|Имя должно содержать 1–80 символов, кроме управляющих.
+请先停止任务或录制。|Stop the task or recording first.|先にタスクまたは記録を停止してください。|Detén primero la tarea o la grabación.|Сначала остановите задачу или запись.
+宏列表操作失败：|Macro library error: |マクロ一覧のエラー：|Error en la biblioteca: |Ошибка библиотеки: 
+宏列表读取失败，请检查本地文件：|Could not read the macro library: |マクロ一覧を読み込めません：|No se pudo leer la biblioteca: |Не удалось прочитать библиотеку: 
+宏列表不可用，请检查本地文件。|Macro library is unavailable.|マクロ一覧を利用できません。|La biblioteca no está disponible.|Библиотека недоступна.
+宏中包含当前快捷键或保留键。|The macro contains a current or reserved hotkey.|マクロに現在のキーまたは予約キーがあります。|La macro contiene una tecla actual o reservada.|Макрос содержит текущую или зарезервированную клавишу.
 语言 / LANGUAGE|LANGUAGE|言語|IDIOMA|ЯЗЫК
 SEQUENCE|SEQUENCE|シーケンス|SECUENCIA|ПОСЛЕДОВАТЕЛЬНОСТЬ
 ✦  DEEP SPACE|✦  DEEP SPACE|✦  深宇宙|✦  ESPACIO PROFUNDO|✦  КОСМОС
@@ -139,6 +173,8 @@ SEQUENCE|SEQUENCE|シーケンス|SECUENCIA|ПОСЛЕДОВАТЕЛЬНОСТЬ
 执行次数（0 表示无限）|Count (0 = unlimited)|実行回数（0 は無制限）|Repeticiones (0 = ilimitadas)|Повторы (0 — без ограничений)
 最长时间（秒，0 为无限）|Max time in seconds (0 = unlimited)|最長時間（秒、0 は無制限）|Tiempo máximo en segundos (0 = ilimitado)|Макс. время в секундах (0 — без ограничений)
 最长时间包含暂停；任一限制达到后自动停止。|Max time includes pauses; either limit stops the task.|最長時間は一時停止を含み、いずれかの制限で停止します。|El tiempo incluye pausas; cualquier límite detiene la tarea.|Макс. время включает паузы; при любом лимите задача остановится.
+使用固定坐标（取消勾选则跟随鼠标）|Use fixed position (uncheck to follow cursor)|固定位置を使用（オフでカーソル追従）|Usar posición fija (desmarcar para seguir cursor)|Фиксированная позиция (снимите флажок для курсора)
+固定位置可在点击位置中设置|Set coordinates under Position|クリック位置で座標を設定|Configura las coordenadas en Posición|Задайте координаты в разделе Позиция
 固定屏幕坐标（物理像素）|Fixed screen position (physical pixels)|画面位置を固定（物理ピクセル）|Posición fija (píxeles físicos)|Фиксированная позиция (физические пиксели)
 步骤编排|Sequence editor|ステップ編集|Editor de secuencia|Редактор шагов
 录制按键会追加到当前步骤；导入不会自动执行。|Recording appends steps; importing does not run them.|記録はステップに追加され、読み込み時に自動実行されません。|La grabación añade pasos; importar no los ejecuta.|Запись добавляет шаги; импорт не запускает их.
